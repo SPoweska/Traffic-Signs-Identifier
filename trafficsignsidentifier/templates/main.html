@@ -1,0 +1,12 @@
+{%  extends 'base.html' %}
+
+{%  block content %}
+    <body class="text-center">
+        <div class="container">
+            <form method="POST" action="" enctype="multipart/form-data">
+                {{ form.file(class="btn btn-dark")  }}
+                {{ form.submit(class="btn btn-dark") }}
+            </form>
+        </div>
+    </body>
+{%  endblock %}
