@@ -12,6 +12,11 @@ def main_page():
     return render_template('main.html', form=form)
 
 
+@app.route('/about')
+def about_page():
+    return render_template('about.html')
+
+
 @app.route('/', methods=['GET', 'POST'])
 def upload_image():
     im = Image.open(request.files['file'])
@@ -20,6 +25,7 @@ def upload_image():
     im.save(data, formats)
     encoded_img_data = base64.b64encode(data.getvalue())
     return render_template('results.html', img_data=encoded_img_data.decode('utf-8'))
+
 
 
 

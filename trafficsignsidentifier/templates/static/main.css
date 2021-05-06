@@ -1,0 +1,14 @@
+.upperHalf {
+   background: url(https://i.ibb.co/WzPnnRD/sign.jpg);
+   width: 100%;
+   position: absolute;
+   left: 0px;
+   height: 50%;
+}
+
+.lowerHalf {
+   width: 100%;
+   position: absolute;
+   right: 0px;
+   height: 50%;
+}
