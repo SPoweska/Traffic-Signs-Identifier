@@ -3,15 +3,13 @@
 {%  block content %}
     <body class="text-center">
 
-        <div class="upperHalf">
-                <form class="form" method="POST" action="" enctype="multipart/form-data">
-                    {{ form.file(class="btn btn-dark")  }}
-                    {{ form.submit(class="btn btn-dark") }}
-                </form>
-        </div>
+    <div class="upperHalf">
+        <form class="form" method="POST" action="" enctype="multipart/form-data">
+            {{ form.csrf_token }}
+            {{ form.file(class="btn btn-dark")  }}
+            {{ form.submit(class="btn btn-dark") }}
+        </form>
+    </div>
 
-        <div class="lowerHalf">
-
-        </div>
     </body>
 {%  endblock %}

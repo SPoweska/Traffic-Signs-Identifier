@@ -10,12 +10,6 @@
    height: 70%;
 }
 
-.lowerHalf {
-   width: 100%;
-   position: absolute;
-   right: 0px;
-   height: 50%;
-}
 .form{
    left: 50%;
    top: 50%;
