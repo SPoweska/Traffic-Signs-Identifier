@@ -19,12 +19,18 @@ def about_page():
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_image():
-    im = Image.open(request.files['file'])
-    data = io.BytesIO()
-    formats = 'PNG' or 'JPEG'
-    im.save(data, formats)
-    encoded_img_data = base64.b64encode(data.getvalue())
-    return render_template('results.html', img_data=encoded_img_data.decode('utf-8'))
+    error = None
+    try:
+        im = Image.open(request.files['file'])
+        im.thumbnail((400, 400))
+        data = io.BytesIO()
+        formats = 'PNG' or 'JPEG'
+        im.save(data, formats)
+        encoded_img_data = base64.b64encode(data.getvalue())
+        return render_template('results.html', img_data=encoded_img_data.decode('utf-8'))
+    except UnidentifiedImageError:
+        flash('Wrong File Format!')
+        return redirect(url_for('main_page', error=error))
 
 
 

@@ -3,12 +3,16 @@
 {%  block content %}
     <body class="text-center">
 
+
     <div class="upperHalf">
         <form class="form" method="POST" action="" enctype="multipart/form-data">
             {{ form.csrf_token }}
             {{ form.file(class="btn btn-dark")  }}
             {{ form.submit(class="btn btn-dark") }}
         </form>
+        {% for message in get_flashed_messages() %}
+            <p class="alert alert-danger">{{ message }}</p>
+        {% endfor %}
     </div>
 
     </body>
