@@ -1,9 +1,15 @@
-{%  extends 'base.html' %}
+{% extends 'base.html' %}
 
 {% block title %}
     Results
 {% endblock %}
 
-{%  block content %}
-    <img id="picture" src="data:image/jpeg;base64,{{ img_data }}">
-{%  endblock %}
+{% block content %}
+    <div class="text-center">
+        <img id="picture" src="data:image/jpeg;base64,{{ img_data }}">
+        {% for key in context %}
+            <h1>Predicted sign: </h1>
+            <p>{{ context[key] }}</p>
+        {% endfor %}
+    </div>
+{% endblock %}

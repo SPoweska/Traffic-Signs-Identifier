@@ -1,223 +1,203 @@
-#!/usr/bin/env python
-# coding: utf-8
+# import the necessary packages
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.layers import Conv2D
+from tensorflow.keras.layers import MaxPooling2D
+from tensorflow.keras.layers import Activation
+from tensorflow.keras.layers import Flatten
+from tensorflow.keras.layers import Dropout
+from tensorflow.keras.layers import Dense
 
 
-import numpy as np 
-import pandas as pd 
+class TrafficSignNet:
+    @staticmethod
+    def build(width, height, depth, classes):
+        # initialize the model along with the input shape to be
+        # "channels last" and the channels dimension itself
+        model = Sequential()
+        inputShape = (height, width, depth)
+        chanDim = -1
+        # CONV => RELU => BN => POOL
+        model.add(Conv2D(8, (5, 5), padding="same", input_shape=inputShape))
+        model.add(Activation("relu"))
+        model.add(BatchNormalization(axis=chanDim))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
+        # first set of (CONV => RELU => CONV => RELU) * 2 => POOL
+        model.add(Conv2D(16, (3, 3), padding="same"))
+        model.add(Activation("relu"))
+        model.add(BatchNormalization(axis=chanDim))
+        model.add(Conv2D(16, (3, 3), padding="same"))
+        model.add(Activation("relu"))
+        model.add(BatchNormalization(axis=chanDim))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
+        # second set of (CONV => RELU => CONV => RELU) * 2 => POOL
+        model.add(Conv2D(32, (3, 3), padding="same"))
+        model.add(Activation("relu"))
+        model.add(BatchNormalization(axis=chanDim))
+        model.add(Conv2D(32, (3, 3), padding="same"))
+        model.add(Activation("relu"))
+        model.add(BatchNormalization(axis=chanDim))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
+        # first set of FC => RELU layers
+        model.add(Flatten())
+        model.add(Dense(128))
+        model.add(Activation("relu"))
+        model.add(BatchNormalization())
+        model.add(Dropout(0.5))
+        # second set of FC => RELU layers
+        model.add(Flatten())
+        model.add(Dense(128))
+        model.add(Activation("relu"))
+        model.add(BatchNormalization())
+        model.add(Dropout(0.5))
+        # softmax classifier
+        model.add(Dense(classes))
+        model.add(Activation("softmax"))
+        # return the constructed network architecture
+        return model
+
+
+# set the matplotlib backend so figures can be saved in the background
+import matplotlib
+
+matplotlib.use("Agg")
+# import the necessary packages
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.utils import to_categorical
+from sklearn.metrics import classification_report
+from skimage import transform
+from skimage import exposure
+from skimage import io
 import matplotlib.pyplot as plt
-from PIL import Image
+import numpy as np
+import argparse
+import random
 import os
-from sklearn.model_selection import train_test_split
-from keras.utils import to_categorical
-from keras.models import Sequential
-from keras.layers import Conv2D, MaxPool2D, Dense, Flatten, Dropout, BatchNormalization
 
 
-data = []
-labels = []
-classes = 43
-cur_path = os.getcwd()
-print(cur_path)
+def load_split(basePath, csvPath):
+    # initialize the list of data and labels
+    data = []
+    labels = []
+    # load the contents of the CSV file, remove the first line (since
+    # it contains the CSV header), and shuffle the rows (otherwise
+    # all examples of a particular class will be in sequential order)
+    rows = open(csvPath).read().strip().split("\n")[1:]
+    random.shuffle(rows)
+    # loop over the rows of the CSV file
+    for (i, row) in enumerate(rows):
+        # check to see if we should show a status update
+        if i > 0 and i % 1000 == 0:
+            print("[INFO] processed {} total images".format(i))
+        # split the row into components and then grab the class ID
+        # and image path
+        (label, imagePath) = row.strip().split(",")[-2:]
+        # derive the full path to the image file and load it
+        imagePath = os.path.sep.join([basePath, imagePath])
+        image = io.imread(imagePath)
+        # resize the image to be 32x32 pixels, ignoring aspect ratio,
+        # and then perform Contrast Limited Adaptive Histogram
+        # Equalization (CLAHE)
+        image = transform.resize(image, (32, 32))
+        image = exposure.equalize_adapthist(image, clip_limit=0.1)
+        # update the list of data and labels, respectively
+        data.append(image)
+        labels.append(int(label))
+        # convert the data and labels to NumPy arrays
+    data = np.array(data)
+    labels = np.array(labels)
+    # return a tuple of the data and labels
+    return (data, labels)
 
 
-#dictionary to label all traffic signs class.
+# construct the argument parser and parse the arguments
+ap = argparse.ArgumentParser()
+ap.add_argument("-d", "--dataset", required=True,
+                help="path to input GTSRB")
+ap.add_argument("-m", "--model", required=True,
+                help="path to output model")
+ap.add_argument("-p", "--plot", type=str, default="plot.png",
+                help="path to training history plot")
+args = vars(ap.parse_args())
 
-sign_names={1:'Speed limit (20km/h)',
-            2:'Speed limit (30km/h)',      
-            3:'Speed limit (50km/h)',       
-            4:'Speed limit (60km/h)',      
-            5:'Speed limit (70km/h)',    
-            6:'Speed limit (80km/h)',      
-            7:'End of speed limit (80km/h)',     
-            8:'Speed limit (100km/h)',    
-            9:'Speed limit (120km/h)',     
-           10:'No passing',   
-           11:'No passing veh over 3.5 tons',     
-           12:'Right-of-way at intersection',     
-           13:'Priority road',    
-           14:'Yield',     
-           15:'Stop',       
-           16:'No vehicles',       
-           17:'Veh > 3.5 tons prohibited',       
-           18:'No entry',       
-           19:'General caution',     
-           20:'Dangerous curve left',      
-           21:'Dangerous curve right',   
-           22:'Double curve',      
-           23:'Bumpy road',     
-           24:'Slippery road',       
-           25:'Road narrows on the right',  
-           26:'Road work',    
-           27:'Traffic signals',      
-           28:'Pedestrians',     
-           29:'Children crossing',     
-           30:'Bicycles crossing',       
-           31:'Beware of ice/snow',
-           32:'Wild animals crossing',      
-           33:'End speed + passing limits',      
-           34:'Turn right ahead',     
-           35:'Turn left ahead',       
-           36:'Ahead only',      
-           37:'Go straight or right',      
-           38:'Go straight or left',      
-           39:'Keep right',     
-           40:'Keep left',      
-           41:'Roundabout mandatory',     
-           42:'End of no passing',      
-           43:'End no passing veh > 3.5 tons' }
+# initialize the number of epochs to train for, base learning rate,
+# and batch size
+NUM_EPOCHS = 30
+INIT_LR = 1e-3
+BS = 64
+# load the label names
+labelNames = open("signnames.csv").read().strip().split("\n")[1:]
+labelNames = [l.split(",")[1] for l in labelNames]
 
+# derive the path to the training and testing CSV files
+trainPath = os.path.sep.join([args["dataset"], "Train.csv"])
+testPath = os.path.sep.join([args["dataset"], "Test.csv"])
+# load the training and testing data
+print("[INFO] loading training and testing data...")
+(trainX, trainY) = load_split(args["dataset"], trainPath)
+(testX, testY) = load_split(args["dataset"], testPath)
+# scale data to the range of [0, 1]
+trainX = trainX.astype("float32") / 255.0
+testX = testX.astype("float32") / 255.0
+# one-hot encode the training and testing labels
+numLabels = len(np.unique(trainY))
+trainY = to_categorical(trainY, numLabels)
+testY = to_categorical(testY, numLabels)
+# calculate the total number of images in each class and
+# initialize a dictionary to store the class weights
+classTotals = trainY.sum(axis=0)
+classWeight = dict()
+# loop over all classes and calculate the class weight
+for i in range(0, len(classTotals)):
+    classWeight[i] = classTotals.max() / classTotals[i]
 
-#Retrieving the images and their labels 
-plt.figure(figsize=(20,5))
+# construct the image generator for data augmentation
+aug = ImageDataGenerator(
+    rotation_range=10,
+    zoom_range=0.15,
+    width_shift_range=0.1,
+    height_shift_range=0.1,
+    shear_range=0.15,
+    horizontal_flip=False,
+    vertical_flip=False,
+    fill_mode="nearest")
+# initialize the optimizer and compile the model
+print("[INFO] compiling model...")
+opt = Adam(lr=INIT_LR, decay=INIT_LR / (NUM_EPOCHS * 0.5))
+model = TrafficSignNet.build(width=32, height=32, depth=3,
+                             classes=numLabels)
+model.compile(loss="categorical_crossentropy", optimizer=opt,
+              metrics=["accuracy"])
+# train the network
+print("[INFO] training network...")
+H = model.fit(
+    aug.flow(trainX, trainY, batch_size=BS),
+    validation_data=(testX, testY),
+    steps_per_epoch=trainX.shape[0] // BS,
+    epochs=NUM_EPOCHS,
+    class_weight=classWeight,
+    verbose=1)
 
-im_read = 0
-im_error = 0
-index = 1
-for i in range(classes):
-    path = os.path.join(cur_path,'Train',str(i))
-    images = os.listdir(path)
-    fignum=0
-    for a in images:
-        #print(a)
-        try:
-            fignum+=1
-            image = Image.open(path + '/'+ a)
-            if i==1 or i==12 or i==21 or i==35 or i==41:
-                if fignum==1:
-                    plt.subplot(1,5,index)
-                    plt.imshow(image)
-                    sign_name = sign_names[i+1]
-                    plt.title(sign_name,fontsize=20)
-                    plt.axis('off')
-                    index+=1
-            image = image.resize((30,30))
-            image = np.array(image)
-            data.append(image)
-            labels.append(i)
-            im_read+=1
-            
-        except:
-            print("Error loading image")
-            im_error+=1
-plt.suptitle('Example Images of Traffic Signs',fontsize=25)
-print('\nImages read = ', im_read)
-print('Error reading images = ', im_error)
+# evaluate the network
+print("[INFO] evaluating network...")
+predictions = model.predict(testX, batch_size=BS)
+print(classification_report(testY.argmax(axis=1),
+	predictions.argmax(axis=1), target_names=labelNames))
+# save the network to disk
+print("[INFO] serializing network to '{}'...".format(args["model"]))
+model.save(args["model"])
 
-
-#Converting lists into numpy arrays
-data = np.array(data)
-labels = np.array(labels)
-print(data)
-print('\n',labels)
-
-
-print(data.shape, labels.shape)
-
-print(type(data))
-
-
-#Splitting training and testing dataset
-X_train, X_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, random_state=42)
-
-print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
-
-#Converting the labels into one hot encoding
-y_train = to_categorical(y_train, 43)
-y_test = to_categorical(y_test, 43)
-
-
-print(y_train.shape)
-
-
-#Building the model
-
-model = Sequential()
-model.add(Conv2D(filters=32, kernel_size=(5,5), activation='relu', input_shape=X_train.shape[1:]))
-model.add(BatchNormalization())
-model.add(Conv2D(filters=32, kernel_size=(5,5), activation='relu'))
-model.add(BatchNormalization())
-model.add(MaxPool2D(pool_size=(2, 2)))
-model.add(Dropout(rate=0.25))
-model.add(Conv2D(filters=64, kernel_size=(3, 3), activation='relu'))
-model.add(BatchNormalization())
-model.add(Conv2D(filters=64, kernel_size=(3, 3), activation='relu'))
-model.add(BatchNormalization())
-model.add(MaxPool2D(pool_size=(2, 2)))
-model.add(Dropout(rate=0.25))
-model.add(Flatten())
-model.add(Dense(256, activation='relu'))
-model.add(Dropout(rate=0.5))
-model.add(Dense(43, activation='softmax'))
-
-
-#Compilation of the model
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-
-epochs = 10
-history = model.fit(X_train, y_train, batch_size=64, epochs=epochs, validation_data=(X_test, y_test))
-
-
-model.save("my_model.h5")
-
-
-#plotting graphs for accuracy 
-plt.figure(0)
-plt.plot(history.history['accuracy'], label='training accuracy')
-plt.plot(history.history['val_accuracy'], label='val accuracy')
-plt.title('Accuracy')
-plt.xlabel('Epochs')
-plt.ylabel('Accuracy')
-plt.legend()
-plt.show()
-
-
-plt.figure(1)
-plt.plot(history.history['loss'], label='training loss')
-plt.plot(history.history['val_loss'], label='val loss')
-plt.title('Loss')
-plt.xlabel('Epochs')
-plt.ylabel('Loss')
-plt.legend()
-plt.show()
-
-
-#testing accuracy on test dataset
-
-y_test = pd.read_csv('Test.csv')
-
-labels = y_test["ClassId"].values
-imgs = y_test["Path"].values
-
-data=[]
-
-for img in imgs:
-    image = Image.open(img)
-    image = image.resize((30,30))
-    data.append(np.array(image))
-
-X_test=np.array(data)
-
-pred = model.predict_classes(X_test)
-
-
-print('Total number of images in test dataset =',len(X_test))
-
-
-from sklearn.metrics import accuracy_score
-print('Test accuracy =',accuracy_score(labels, pred))
-
-
-#Number of correctly and incorrectly identified traffic signs
-index=0
-misclassifiedIndex=[]
-correctlyClassifiedIndex=[]
-for predict,actual in zip(pred,labels):
-    if predict!=actual:
-        misclassifiedIndex.append(index)
-    elif predict==actual:
-        correctlyClassifiedIndex.append(index)
-    index+=1
-print('Number of incorrectly identified signs = ',len(misclassifiedIndex))
-print('Number of correctly identified signs = ',len(correctlyClassifiedIndex))
-
-
+# plot the training loss and accuracy
+N = np.arange(0, NUM_EPOCHS)
+plt.style.use("ggplot")
+plt.figure()
+plt.plot(N, H.history["loss"], label="train_loss")
+plt.plot(N, H.history["val_loss"], label="val_loss")
+plt.plot(N, H.history["accuracy"], label="train_acc")
+plt.plot(N, H.history["val_accuracy"], label="val_acc")
+plt.title("Training Loss and Accuracy on Dataset")
+plt.xlabel("Epoch #")
+plt.ylabel("Loss/Accuracy")
+plt.legend(loc="lower left")
+plt.savefig(args["plot"])
