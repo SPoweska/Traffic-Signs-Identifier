@@ -30,7 +30,6 @@ def upload_image():
     try:
         file = request.files['file']
         im = Image.open(file)
-        im.thumbnail((400, 400))
         data = ios.BytesIO()
         formats = 'PNG' or 'JPEG'
         imName = im.save(data, formats)

@@ -5,11 +5,32 @@
 {% endblock %}
 
 {% block content %}
-    <div class="text-center">
-        <img id="picture" src="data:image/jpeg;base64,{{ img_data }}">
-        {% for key in context %}
-            <h1>Predicted sign: </h1>
-            <p>{{ context[key] }}</p>
-        {% endfor %}
+    <div class="container">
+        <div class="card border-0 shadow my-5">
+            <div class="card-body p-5">
+                <div class="card-group">
+                    <div class="card text-center">
+                        <img id="picture" src="data:image/jpeg;base64,{{ img_data }}">
+                    </div>
+                    <div class="card text-center">
+                        <div class="card-header">
+                            <h1>Predicted sign: </h1>
+                        </div>
+                        <div class="card-body">
+                            <div class="container d-flex h-100">
+                                <div class="row mx-auto justify-content-center align-self-center">
+                                    {% for key in context %}
+                                        <h3>{{ context[key] }}</h3>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <a class="btn btn-dark" href="{{ url_for('main_page') }}"><b>Back</b></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 {% endblock %}
