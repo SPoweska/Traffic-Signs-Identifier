@@ -1,19 +1,22 @@
-{%  extends 'base.html' %}
+{% extends 'base.html' %}
 
-{%  block content %}
-    <body class="text-center">
+{% block content %}
+    <body class="text-center" style="overflow: hidden">
 
-
-    <div class="upperHalf">
+    <div>
+        {% for message in get_flashed_messages() %}
+            <p class="alert alert-danger" style="margin-bottom: 0px"> {{ message }}</p>
+        {% endfor %}
+        <video autoplay muted loop id="myVideo"
+               style="height: 100%; width: 1.77777778vh; min-width: 100%; min-height: 56.25vw;">
+            <source src="./static/Traffic.mp4" type="video/mp4">
+        </video>
         <form class="form" method="POST" action="" enctype="multipart/form-data">
             {{ form.csrf_token }}
-            {{ form.file(class="btn btn-dark")  }}
-            {{ form.submit(class="btn btn-dark") }}
+            {{ form.file(class="btn btn-outline-light") }}
+            {{ form.submit(class="btn btn-outline-light") }}
         </form>
-        {% for message in get_flashed_messages() %}
-            <p class="alert alert-danger">{{ message }}</p>
-        {% endfor %}
     </div>
 
     </body>
-{%  endblock %}
+{% endblock %}

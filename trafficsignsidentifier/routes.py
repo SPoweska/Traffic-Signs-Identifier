@@ -29,10 +29,10 @@ def upload_image():
     error = None
     try:
         file = request.files['file']
-        im = Image.open(file)
+        img = Image.open(file)
         data = ios.BytesIO()
         formats = 'PNG' or 'JPEG'
-        imName = im.save(data, formats)
+        img.save(data, formats)
         encoded_img_data = base64.b64encode(data.getvalue())
 
         imgOriginal = io.imread(file, plugin='matplotlib')
@@ -46,5 +46,5 @@ def upload_image():
         return render_template('results.html', img_data=encoded_img_data.decode('utf-8'),
                                context={"predictedSign": sign})
     except UnidentifiedImageError:
-        flash('Wrong File Format!')
+        flash('Wrong File Format! Please use .jpg or .png file.')
         return redirect(url_for('main_page', error=error))

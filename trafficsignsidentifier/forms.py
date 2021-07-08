@@ -7,4 +7,4 @@ images = ['JPEG', 'PNG']
 
 class UploadPhotoForm(FlaskForm):
     file = FileField('File', validators=[FileRequired(), FileAllowed(images, 'Images only!')])
-    submit = SubmitField('Submit')
+    submit = SubmitField('✓')
